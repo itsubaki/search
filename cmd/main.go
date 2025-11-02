@@ -13,13 +13,6 @@ func main() {
 		panic(err)
 	}
 
-	resp, err := client.Info()
-	if err != nil && err != io.EOF {
-		panic(err)
-	}
-
-	fmt.Println(resp)
-
 	pong, err := client.Ping()
 	if err != nil && err != io.EOF {
 		panic(err)
