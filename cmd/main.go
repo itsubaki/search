@@ -1,17 +1,13 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"time"
 
-	"github.com/elastic/go-elasticsearch/v9"
+	"github.com/itsubaki/search/es"
 )
 
 var (
@@ -130,227 +126,246 @@ var index = map[string]any{
 	},
 }
 
-var data = `
-{"index": {"_index": "my_fulltext_search", "_id": 1}}
-{"my_field": "アメリカ"}
-{"index": {"_index": "my_fulltext_search", "_id": 2}}
-{"my_field": "米国"}
-{"index": {"_index": "my_fulltext_search", "_id": 3}}
-{"my_field": "アメリカの大学"}
-{"index": {"_index": "my_fulltext_search", "_id": 4}}
-{"my_field": "東京大学"}
-{"index": {"_index": "my_fulltext_search", "_id": 5}}
-{"my_field": "帝京大学"}
-{"index": {"_index": "my_fulltext_search", "_id": 6}}
-{"my_field": "東京で夢の大学生活"}
-{"index": {"_index": "my_fulltext_search", "_id": 7}}
-{"my_field": "東京大学で夢の生活"}
-{"index": {"_index": "my_fulltext_search", "_id": 8}}
-{"my_field": "東大で夢の生活"}
-{"index": {"_index": "my_fulltext_search", "_id": 9}}
-{"my_field": "首都圏の大学 東京"}
-`
+type MyData struct {
+	MyField string `json:"my_field"`
+}
 
-var query = []string{
-	`
-{
-  "query": {
-    "bool": {
-      "must": [
-        {
-          "multi_match": {
-            "query": "米国",
-            "fields": ["my_field.ngram^1"],
-            "type": "phrase"
-          }
-        }
-      ],
-      "should": [
-        {
-          "multi_match": {
-            "query": "米国",
-            "fields": ["my_field^1"],
-            "type": "phrase"
-          }
-        }
-      ]
-    }
-  }
+var data = []es.Data[MyData]{
+	{
+		BulkIndex: es.BulkIndex{
+			Index: es.BulkIndexMeta{
+				Index: indexName,
+				ID:    1,
+			},
+		},
+		Source: MyData{
+			MyField: "アメリカ",
+		},
+	},
+	{
+		BulkIndex: es.BulkIndex{
+			Index: es.BulkIndexMeta{
+				Index: indexName,
+				ID:    2,
+			},
+		},
+		Source: MyData{
+			MyField: "米国",
+		},
+	},
+	{
+		BulkIndex: es.BulkIndex{
+			Index: es.BulkIndexMeta{
+				Index: indexName,
+				ID:    3,
+			},
+		},
+		Source: MyData{
+			MyField: "アメリカの大学",
+		},
+	},
+	{
+		BulkIndex: es.BulkIndex{
+			Index: es.BulkIndexMeta{
+				Index: indexName,
+				ID:    4,
+			},
+		},
+		Source: MyData{
+			MyField: "東京大学",
+		},
+	},
+	{
+		BulkIndex: es.BulkIndex{
+			Index: es.BulkIndexMeta{
+				Index: indexName,
+				ID:    5,
+			},
+		},
+		Source: MyData{
+			MyField: "帝京大学",
+		},
+	},
+	{
+		BulkIndex: es.BulkIndex{
+			Index: es.BulkIndexMeta{
+				Index: indexName,
+				ID:    6,
+			},
+		},
+		Source: MyData{
+			MyField: "東京で夢の大学生活",
+		},
+	},
+	{
+		BulkIndex: es.BulkIndex{
+			Index: es.BulkIndexMeta{
+				Index: indexName,
+				ID:    7,
+			},
+		},
+		Source: MyData{
+			MyField: "東京大学で夢の生活",
+		},
+	},
+	{
+		BulkIndex: es.BulkIndex{
+			Index: es.BulkIndexMeta{
+				Index: indexName,
+				ID:    8,
+			},
+		},
+		Source: MyData{
+			MyField: "東大で夢の生活",
+		},
+	},
+	{
+		BulkIndex: es.BulkIndex{
+			Index: es.BulkIndexMeta{
+				Index: indexName,
+				ID:    9,
+			},
+		},
+		Source: MyData{
+			MyField: "首都圏の大学 東京",
+		},
+	},
 }
-`,
-	`
-{
-  "query": {
-    "bool": {
-      "must": [
-        {
-          "multi_match": {
-            "query": "東京大学",
-            "fields": [
-              "my_field.ngram^1"
-            ],
-            "type": "phrase"
-          }
-        }
-      ],
-      "should": [
-        {
-          "multi_match": {
-            "query": "東京大学",
-            "fields": [
-              "my_field^1"
-            ],
-            "type": "phrase"
-          }
-        }
-      ]
-    }
-  }
-}
-`,
+
+var query = []es.Query{
+	{
+		Query: es.BoolQuery{
+			Bool: es.BoolBody{
+				Must: []es.MultiMatchQuery{
+					{
+						MultiMatch: es.MultiMatchBody{
+							Query:  "米国",
+							Fields: []string{"my_field.ngram^1"},
+							Type:   "phrase",
+						},
+					},
+				},
+				Should: []es.MultiMatchQuery{
+					{
+						MultiMatch: es.MultiMatchBody{
+							Query:  "米国",
+							Fields: []string{"my_field^1"},
+							Type:   "phrase",
+						},
+					},
+				},
+			},
+		},
+	},
+	{
+		Query: es.BoolQuery{
+			Bool: es.BoolBody{
+				Must: []es.MultiMatchQuery{
+					{
+						MultiMatch: es.MultiMatchBody{
+							Query:  "東京大学",
+							Fields: []string{"my_field.ngram^1"},
+							Type:   "phrase",
+						},
+					},
+				},
+				Should: []es.MultiMatchQuery{
+					{
+						MultiMatch: es.MultiMatchBody{
+							Query:  "東京大学",
+							Fields: []string{"my_field^1"},
+							Type:   "phrase",
+						},
+					},
+				},
+			},
+		},
+	},
 }
 
 func main() {
-	es, err := elasticsearch.NewClient(elasticsearch.Config{
-		Addresses: []string{
-			address,
-		},
-		Username: username,
-		Password: password,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		},
-	})
+	client, err := es.NewClient[MyData](
+		[]string{address},
+		username,
+		password,
+	)
 	if err != nil {
 		panic(err)
 	}
 
-	pong, err := es.Ping()
+	if err := client.Ping(); err != nil {
+		panic(err)
+	}
+
+	settings, err := json.Marshal(index)
 	if err != nil {
 		panic(err)
 	}
-	defer pong.Body.Close()
-	fmt.Println(pong)
 
-	{
-		data, err := json.Marshal(index)
+	if err := client.Delete([]string{
+		indexName,
+	}); err != nil {
+		panic(err)
+	}
+
+	if err := client.Create(
+		context.Background(),
+		indexName,
+		settings,
+	); err != nil {
+		panic(err)
+	}
+
+	if err := client.Bulk(
+		context.Background(),
+		indexName,
+		data,
+	); err != nil {
+		panic(err)
+	}
+
+	for {
+		cnt, err := client.Count(indexName)
 		if err != nil {
 			panic(err)
 		}
 
-		if _, err = es.Indices.Delete([]string{indexName}); err != nil {
+		if cnt > 0 {
+			break
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+
+	list, err := client.CatIndex()
+	if err != nil {
+		panic(err)
+	}
+
+	for _, v := range list {
+		bytes, err := json.Marshal(v)
+		if err != nil {
 			panic(err)
 		}
 
-		res, err := es.Indices.Create(
+		fmt.Println(string(bytes))
+	}
+
+	for _, q := range query {
+		result, err := client.Search(
+			context.Background(),
 			indexName,
-			es.Indices.Create.WithBody(bytes.NewReader(data)),
-			es.Indices.Create.WithContext(context.Background()),
+			q,
 		)
 		if err != nil {
 			panic(err)
 		}
-		defer res.Body.Close()
 
-		if res.IsError() {
-			panic(res.String())
-		}
-
-		fmt.Println("✅ Successfully created index")
-	}
-
-	{
-		res, err := es.Bulk(
-			bytes.NewReader([]byte(data)),
-			es.Bulk.WithContext(context.Background()),
-			es.Bulk.WithIndex(indexName),
-		)
-		if err != nil {
-			panic(err)
-		}
-		defer res.Body.Close()
-
-		if res.IsError() {
-			panic(res.String())
-		}
-
-		for {
-			res, err := es.Count(
-				es.Count.WithIndex(indexName),
-			)
-			if err != nil {
-				panic(err)
-			}
-
-			type Response struct {
-				Count  int `json:"count"`
-				Shards struct {
-					Total      int `json:"total"`
-					Successful int `json:"successful"`
-					Skipped    int `json:"skipped"`
-					Failed     int `json:"failed"`
-				} `json:"_shards"`
-			}
-
-			var count Response
-			if err := json.NewDecoder(res.Body).Decode(&count); err != nil {
-				panic(err)
-			}
-
-			if count.Count > 0 {
-				fmt.Println("✅ Bulk indexing completed")
-				break
-			}
-
-			fmt.Println("⏳ Waiting for documents to be indexed...")
-			time.Sleep(1 * time.Second)
-		}
-
-	}
-
-	{
-		res, err := es.Cat.Indices(
-			es.Cat.Indices.WithFormat("json"),
-			es.Cat.Indices.WithPretty(),
-		)
-		if err != nil {
-			panic(err)
-		}
-		defer res.Body.Close()
-
-		body, err := io.ReadAll(res.Body)
+		bytes, err := json.Marshal(result)
 		if err != nil {
 			panic(err)
 		}
 
-		fmt.Println(string(body))
-	}
-
-	{
-		for _, q := range query {
-			res, err := es.Search(
-				es.Search.WithContext(context.Background()),
-				es.Search.WithIndex(indexName),
-				es.Search.WithBody(bytes.NewReader([]byte(q))),
-				es.Search.WithTrackTotalHits(true),
-			)
-			if err != nil {
-				panic(err)
-			}
-			defer res.Body.Close()
-
-			if res.IsError() {
-				panic(res.String())
-			}
-
-			body, err := io.ReadAll(res.Body)
-			if err != nil {
-				panic(err)
-			}
-
-			fmt.Println(string(body))
-		}
+		fmt.Println(string(bytes))
 	}
 }
