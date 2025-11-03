@@ -276,8 +276,6 @@ func main() {
 			panic(res.String())
 		}
 
-		fmt.Println("✅ Bulk indexing completed")
-
 		for {
 			res, err := es.Count(
 				es.Count.WithIndex(indexName),
@@ -302,7 +300,7 @@ func main() {
 			}
 
 			if count.Count > 0 {
-				fmt.Println("✅ Document exists, breaking loop")
+				fmt.Println("✅ Bulk indexing completed")
 				break
 			}
 
