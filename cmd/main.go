@@ -284,7 +284,7 @@ var query = []es.Query{
 }
 
 func main() {
-	client, err := es.NewClient[MyData](
+	client, err := es.NewClient(
 		[]string{address},
 		username,
 		password,
@@ -316,8 +316,9 @@ func main() {
 		panic(err)
 	}
 
-	if err := client.Bulk(
+	if err := es.Bulk(
 		context.Background(),
+		client,
 		indexName,
 		data,
 	); err != nil {
@@ -352,8 +353,9 @@ func main() {
 	}
 
 	for _, q := range query {
-		result, err := client.Search(
+		result, err := es.Search[MyData](
 			context.Background(),
+			client,
 			indexName,
 			q,
 		)

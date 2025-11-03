@@ -11,11 +11,11 @@ import (
 	"github.com/elastic/go-elasticsearch/v9"
 )
 
-type Client[T any] struct {
+type Client struct {
 	client *elasticsearch.Client
 }
 
-func NewClient[T any](address []string, username, password string) (*Client[T], error) {
+func NewClient(address []string, username, password string) (*Client, error) {
 	es, err := elasticsearch.NewClient(elasticsearch.Config{
 		Addresses: address,
 		Username:  username,
@@ -30,12 +30,12 @@ func NewClient[T any](address []string, username, password string) (*Client[T], 
 		return nil, err
 	}
 
-	return &Client[T]{
+	return &Client{
 		client: es,
 	}, nil
 }
 
-func (c *Client[T]) Ping() error {
+func (c *Client) Ping() error {
 	if _, err := c.client.Ping(); err != nil {
 		return err
 	}
@@ -43,7 +43,7 @@ func (c *Client[T]) Ping() error {
 	return nil
 }
 
-func (c *Client[T]) Delete(index []string) error {
+func (c *Client) Delete(index []string) error {
 	if _, err := c.client.Indices.Delete(index); err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func (c *Client[T]) Delete(index []string) error {
 	return nil
 }
 
-func (c *Client[T]) Create(
+func (c *Client) Create(
 	ctx context.Context,
 	index string,
 	data []byte,
@@ -73,34 +73,7 @@ func (c *Client[T]) Create(
 	return nil
 }
 
-func (c *Client[T]) Bulk(
-	ctx context.Context,
-	index string,
-	data []Data[T],
-) error {
-	dataBytes, err := Bytes(data)
-	if err != nil {
-		return err
-	}
-
-	res, err := c.client.Bulk(
-		bytes.NewReader(dataBytes),
-		c.client.Bulk.WithContext(ctx),
-		c.client.Bulk.WithIndex(index),
-	)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-
-	if res.IsError() {
-		return fmt.Errorf("bulk indexing: %s", res.String())
-	}
-
-	return nil
-}
-
-func (c *Client[T]) Count(index string) (int, error) {
+func (c *Client) Count(index string) (int, error) {
 	res, err := c.client.Count(
 		c.client.Count.WithIndex(index),
 	)
@@ -127,7 +100,7 @@ func (c *Client[T]) Count(index string) (int, error) {
 	return resp.Count, nil
 }
 
-func (c *Client[T]) CatIndex() ([]CatIndex, error) {
+func (c *Client) CatIndex() ([]CatIndex, error) {
 	res, err := c.client.Cat.Indices(
 		c.client.Cat.Indices.WithFormat("json"),
 		c.client.Cat.Indices.WithPretty(),
@@ -145,8 +118,37 @@ func (c *Client[T]) CatIndex() ([]CatIndex, error) {
 	return indices, nil
 }
 
-func (c *Client[T]) Search(
+func Bulk[T any](
 	ctx context.Context,
+	client *Client,
+	index string,
+	data []Data[T],
+) error {
+	dataBytes, err := Bytes(data)
+	if err != nil {
+		return err
+	}
+
+	res, err := client.client.Bulk(
+		bytes.NewReader(dataBytes),
+		client.client.Bulk.WithContext(ctx),
+		client.client.Bulk.WithIndex(index),
+	)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return fmt.Errorf("bulk indexing: %s", res.String())
+	}
+
+	return nil
+}
+
+func Search[T any](
+	ctx context.Context,
+	client *Client,
 	index string,
 	query Query,
 ) (*SearchResult[T], error) {
@@ -155,11 +157,11 @@ func (c *Client[T]) Search(
 		return nil, err
 	}
 
-	res, err := c.client.Search(
-		c.client.Search.WithContext(ctx),
-		c.client.Search.WithIndex(index),
-		c.client.Search.WithBody(bytes.NewReader(queryBytes)),
-		c.client.Search.WithTrackTotalHits(true),
+	res, err := client.client.Search(
+		client.client.Search.WithContext(ctx),
+		client.client.Search.WithIndex(index),
+		client.client.Search.WithBody(bytes.NewReader(queryBytes)),
+		client.client.Search.WithTrackTotalHits(true),
 	)
 	if err != nil {
 		return nil, err
