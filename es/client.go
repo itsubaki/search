@@ -43,8 +43,8 @@ func (c *Client) Ping() error {
 	return nil
 }
 
-func (c *Client) Delete(index []string) error {
-	if _, err := c.client.Indices.Delete(index); err != nil {
+func (c *Client) Delete(indexNames []string) error {
+	if _, err := c.client.Indices.Delete(indexNames); err != nil {
 		return err
 	}
 
@@ -53,11 +53,16 @@ func (c *Client) Delete(index []string) error {
 
 func (c *Client) Create(
 	ctx context.Context,
-	index string,
-	data []byte,
+	indexName string,
+	index Index,
 ) error {
+	data, err := json.Marshal(index)
+	if err != nil {
+		return err
+	}
+
 	res, err := c.client.Indices.Create(
-		index,
+		indexName,
 		c.client.Indices.Create.WithBody(bytes.NewReader(data)),
 		c.client.Indices.Create.WithContext(ctx),
 	)
@@ -73,9 +78,9 @@ func (c *Client) Create(
 	return nil
 }
 
-func (c *Client) Count(index string) (int, error) {
+func (c *Client) Count(indexName string) (int, error) {
 	res, err := c.client.Count(
-		c.client.Count.WithIndex(index),
+		c.client.Count.WithIndex(indexName),
 	)
 	if err != nil {
 		return -1, err
@@ -83,13 +88,7 @@ func (c *Client) Count(index string) (int, error) {
 	defer res.Body.Close()
 
 	type Response struct {
-		Count  int `json:"count"`
-		Shards struct {
-			Total      int `json:"total"`
-			Successful int `json:"successful"`
-			Skipped    int `json:"skipped"`
-			Failed     int `json:"failed"`
-		} `json:"_shards"`
+		Count int `json:"count"`
 	}
 
 	var resp Response
@@ -121,7 +120,7 @@ func (c *Client) CatIndex() ([]CatIndex, error) {
 func Bulk[T any](
 	ctx context.Context,
 	client *Client,
-	index string,
+	indexName string,
 	data []Data[T],
 ) error {
 	dataBytes, err := Bytes(data)
@@ -132,7 +131,7 @@ func Bulk[T any](
 	res, err := client.client.Bulk(
 		bytes.NewReader(dataBytes),
 		client.client.Bulk.WithContext(ctx),
-		client.client.Bulk.WithIndex(index),
+		client.client.Bulk.WithIndex(indexName),
 	)
 	if err != nil {
 		return err
@@ -149,7 +148,7 @@ func Bulk[T any](
 func Search[T any](
 	ctx context.Context,
 	client *Client,
-	index string,
+	indexName string,
 	query Query,
 ) (*SearchResult[T], error) {
 	queryBytes, err := query.Bytes()
@@ -159,7 +158,7 @@ func Search[T any](
 
 	res, err := client.client.Search(
 		client.client.Search.WithContext(ctx),
-		client.client.Search.WithIndex(index),
+		client.client.Search.WithIndex(indexName),
 		client.client.Search.WithBody(bytes.NewReader(queryBytes)),
 		client.client.Search.WithTrackTotalHits(true),
 	)

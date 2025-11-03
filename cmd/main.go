@@ -17,270 +17,8 @@ var (
 	address   = "https://localhost:9200"
 )
 
-var index = map[string]any{
-	"settings": map[string]any{
-		"analysis": map[string]any{
-			"char_filter": map[string]any{
-				"normalize": map[string]any{
-					"type": "icu_normalizer",
-					"name": "nfkc",
-					"mode": "compose",
-				},
-			},
-			"tokenizer": map[string]any{
-				"ja_kuromoji_tokenizer": map[string]any{
-					"type":                   "kuromoji_tokenizer",
-					"mode":                   "search",
-					"discard_compound_token": true,
-					"user_dictionary_rules": []string{
-						"東京スカイツリー,東京 スカイツリー,トウキョウ スカイツリー,カスタム名詞",
-					},
-				},
-				"ja_ngram_tokenizer": map[string]any{
-					"type":     "ngram",
-					"min_gram": 2,
-					"max_gram": 2,
-					"token_chars": []string{
-						"letter",
-						"digit",
-					},
-				},
-			},
-			"filter": map[string]any{
-				"ja_index_synonym": map[string]any{
-					"type":     "synonym",
-					"lenient":  false,
-					"synonyms": []string{},
-				},
-				"ja_search_synonym": map[string]any{
-					"type":    "synonym_graph",
-					"lenient": false,
-					"synonyms": []string{
-						"米国, アメリカ",
-						"東京大学, 東大",
-					},
-				},
-			},
-			"analyzer": map[string]any{
-				"ja_kuromoji_index_analyzer": map[string]any{
-					"type":        "custom",
-					"char_filter": []string{"normalize"},
-					"tokenizer":   "ja_kuromoji_tokenizer",
-					"filter": []string{
-						"kuromoji_baseform",
-						"kuromoji_part_of_speech",
-						"ja_index_synonym",
-						"cjk_width",
-						"ja_stop",
-						"kuromoji_stemmer",
-						"lowercase",
-					},
-				},
-				"ja_kuromoji_search_analyzer": map[string]any{
-					"type":        "custom",
-					"char_filter": []string{"normalize"},
-					"tokenizer":   "ja_kuromoji_tokenizer",
-					"filter": []string{
-						"kuromoji_baseform",
-						"kuromoji_part_of_speech",
-						"ja_search_synonym",
-						"cjk_width",
-						"ja_stop",
-						"kuromoji_stemmer",
-						"lowercase",
-					},
-				},
-				"ja_ngram_index_analyzer": map[string]any{
-					"type":        "custom",
-					"char_filter": []string{"normalize"},
-					"tokenizer":   "ja_ngram_tokenizer",
-					"filter":      []string{"lowercase"},
-				},
-				"ja_ngram_search_analyzer": map[string]any{
-					"type":        "custom",
-					"char_filter": []string{"normalize"},
-					"tokenizer":   "ja_ngram_tokenizer",
-					"filter": []string{
-						"ja_search_synonym",
-						"lowercase",
-					},
-				},
-			},
-		},
-	},
-	"mappings": map[string]any{
-		"properties": map[string]any{
-			"my_field": map[string]any{
-				"type":            "text",
-				"search_analyzer": "ja_kuromoji_search_analyzer",
-				"analyzer":        "ja_kuromoji_index_analyzer",
-				"fields": map[string]any{
-					"ngram": map[string]any{
-						"type":            "text",
-						"search_analyzer": "ja_ngram_search_analyzer",
-						"analyzer":        "ja_ngram_index_analyzer",
-					},
-				},
-			},
-		},
-	},
-}
-
 type MyData struct {
 	MyField string `json:"my_field"`
-}
-
-var data = []es.Data[MyData]{
-	{
-		BulkIndex: es.BulkIndex{
-			Index: es.BulkIndexMeta{
-				Index: indexName,
-				ID:    1,
-			},
-		},
-		Source: MyData{
-			MyField: "アメリカ",
-		},
-	},
-	{
-		BulkIndex: es.BulkIndex{
-			Index: es.BulkIndexMeta{
-				Index: indexName,
-				ID:    2,
-			},
-		},
-		Source: MyData{
-			MyField: "米国",
-		},
-	},
-	{
-		BulkIndex: es.BulkIndex{
-			Index: es.BulkIndexMeta{
-				Index: indexName,
-				ID:    3,
-			},
-		},
-		Source: MyData{
-			MyField: "アメリカの大学",
-		},
-	},
-	{
-		BulkIndex: es.BulkIndex{
-			Index: es.BulkIndexMeta{
-				Index: indexName,
-				ID:    4,
-			},
-		},
-		Source: MyData{
-			MyField: "東京大学",
-		},
-	},
-	{
-		BulkIndex: es.BulkIndex{
-			Index: es.BulkIndexMeta{
-				Index: indexName,
-				ID:    5,
-			},
-		},
-		Source: MyData{
-			MyField: "帝京大学",
-		},
-	},
-	{
-		BulkIndex: es.BulkIndex{
-			Index: es.BulkIndexMeta{
-				Index: indexName,
-				ID:    6,
-			},
-		},
-		Source: MyData{
-			MyField: "東京で夢の大学生活",
-		},
-	},
-	{
-		BulkIndex: es.BulkIndex{
-			Index: es.BulkIndexMeta{
-				Index: indexName,
-				ID:    7,
-			},
-		},
-		Source: MyData{
-			MyField: "東京大学で夢の生活",
-		},
-	},
-	{
-		BulkIndex: es.BulkIndex{
-			Index: es.BulkIndexMeta{
-				Index: indexName,
-				ID:    8,
-			},
-		},
-		Source: MyData{
-			MyField: "東大で夢の生活",
-		},
-	},
-	{
-		BulkIndex: es.BulkIndex{
-			Index: es.BulkIndexMeta{
-				Index: indexName,
-				ID:    9,
-			},
-		},
-		Source: MyData{
-			MyField: "首都圏の大学 東京",
-		},
-	},
-}
-
-var query = []es.Query{
-	{
-		Query: es.BoolQuery{
-			Bool: es.BoolBody{
-				Must: []es.MultiMatchQuery{
-					{
-						MultiMatch: es.MultiMatchBody{
-							Query:  "米国",
-							Fields: []string{"my_field.ngram^1"},
-							Type:   "phrase",
-						},
-					},
-				},
-				Should: []es.MultiMatchQuery{
-					{
-						MultiMatch: es.MultiMatchBody{
-							Query:  "米国",
-							Fields: []string{"my_field^1"},
-							Type:   "phrase",
-						},
-					},
-				},
-			},
-		},
-	},
-	{
-		Query: es.BoolQuery{
-			Bool: es.BoolBody{
-				Must: []es.MultiMatchQuery{
-					{
-						MultiMatch: es.MultiMatchBody{
-							Query:  "東京大学",
-							Fields: []string{"my_field.ngram^1"},
-							Type:   "phrase",
-						},
-					},
-				},
-				Should: []es.MultiMatchQuery{
-					{
-						MultiMatch: es.MultiMatchBody{
-							Query:  "東京大学",
-							Fields: []string{"my_field^1"},
-							Type:   "phrase",
-						},
-					},
-				},
-			},
-		},
-	},
 }
 
 func main() {
@@ -297,11 +35,6 @@ func main() {
 		panic(err)
 	}
 
-	settings, err := json.Marshal(index)
-	if err != nil {
-		panic(err)
-	}
-
 	if err := client.Delete([]string{
 		indexName,
 	}); err != nil {
@@ -311,7 +44,124 @@ func main() {
 	if err := client.Create(
 		context.Background(),
 		indexName,
-		settings,
+		es.Index{
+			Settings: es.Settings{
+				Analysis: es.Analysis{
+					CharFilter: map[string]es.CharFilter{
+						"normalize": {
+							Type: "icu_normalizer",
+							Name: "nfkc",
+							Mode: "compose",
+						},
+					},
+					Tokenizer: map[string]es.Tokenizer{
+						"ja_kuromoji_tokenizer": {
+							Type:                 "kuromoji_tokenizer",
+							Mode:                 "search",
+							DiscardCompoundToken: true,
+							UserDictionaryRules: []string{
+								"東京スカイツリー,東京 スカイツリー,トウキョウ スカイツリー,カスタム名詞",
+							},
+						},
+						"ja_ngram_tokenizer": {
+							Type:    "ngram",
+							MinGram: 2,
+							MaxGram: 2,
+							TokenChars: []string{
+								"letter",
+								"digit",
+							},
+						},
+					},
+					Filter: map[string]es.Filter{
+						"ja_index_synonym": {
+							Type:     "synonym",
+							Lenient:  false,
+							Synonyms: []string{},
+						},
+						"ja_search_synonym": {
+							Type:    "synonym_graph",
+							Lenient: false,
+							Synonyms: []string{
+								"米国, アメリカ",
+								"東京大学, 東大",
+							},
+						},
+					},
+					Analyzer: map[string]es.Analyzer{
+						"ja_kuromoji_index_analyzer": {
+							Type:      "custom",
+							Tokenizer: "ja_kuromoji_tokenizer",
+							CharFilter: []string{
+								"normalize",
+							},
+							Filter: []string{
+								"kuromoji_baseform",
+								"kuromoji_part_of_speech",
+								"ja_index_synonym",
+								"cjk_width",
+								"ja_stop",
+								"kuromoji_stemmer",
+								"lowercase",
+							},
+						},
+						"ja_kuromoji_search_analyzer": {
+							Type:      "custom",
+							Tokenizer: "ja_kuromoji_tokenizer",
+							CharFilter: []string{
+								"normalize",
+							},
+							Filter: []string{
+								"kuromoji_baseform",
+								"kuromoji_part_of_speech",
+								"ja_search_synonym",
+								"cjk_width",
+								"ja_stop",
+								"kuromoji_stemmer",
+								"lowercase",
+							},
+						},
+						"ja_ngram_index_analyzer": {
+							Type:      "custom",
+							Tokenizer: "ja_ngram_tokenizer",
+							CharFilter: []string{
+								"normalize",
+							},
+							Filter: []string{
+								"lowercase",
+							},
+						},
+						"ja_ngram_search_analyzer": {
+							Type:      "custom",
+							Tokenizer: "ja_ngram_tokenizer",
+							CharFilter: []string{
+								"normalize",
+							},
+							Filter: []string{
+								"ja_search_synonym",
+								"lowercase",
+							},
+						},
+					},
+				},
+			},
+			Mappings: es.Mappings{
+				Properties: map[string]es.Property{
+					"my_field": {
+						Type:           "text",
+						SearchAnalyzer: "ja_kuromoji_search_analyzer",
+						Analyzer:       "ja_kuromoji_index_analyzer",
+						Fields: map[string]es.SubField{
+							"ngram": {
+								Type:           "text",
+								SearchAnalyzer: "ja_ngram_search_analyzer",
+								Analyzer:       "ja_ngram_index_analyzer",
+							},
+						},
+					},
+				},
+			},
+		},
 	); err != nil {
 		panic(err)
 	}
@@ -320,7 +170,107 @@ func main() {
 		context.Background(),
 		client,
 		indexName,
-		data,
+		[]es.Data[MyData]{
+			{
+				BulkIndex: es.BulkIndex{
+					Index: es.BulkIndexMeta{
+						Index: indexName,
+						ID:    1,
+					},
+				},
+				Source: MyData{
+					MyField: "アメリカ",
+				},
+			},
+			{
+				BulkIndex: es.BulkIndex{
+					Index: es.BulkIndexMeta{
+						Index: indexName,
+						ID:    2,
+					},
+				},
+				Source: MyData{
+					MyField: "米国",
+				},
+			},
+			{
+				BulkIndex: es.BulkIndex{
+					Index: es.BulkIndexMeta{
+						Index: indexName,
+						ID:    3,
+					},
+				},
+				Source: MyData{
+					MyField: "アメリカの大学",
+				},
+			},
+			{
+				BulkIndex: es.BulkIndex{
+					Index: es.BulkIndexMeta{
+						Index: indexName,
+						ID:    4,
+					},
+				},
+				Source: MyData{
+					MyField: "東京大学",
+				},
+			},
+			{
+				BulkIndex: es.BulkIndex{
+					Index: es.BulkIndexMeta{
+						Index: indexName,
+						ID:    5,
+					},
+				},
+				Source: MyData{
+					MyField: "帝京大学",
+				},
+			},
+			{
+				BulkIndex: es.BulkIndex{
+					Index: es.BulkIndexMeta{
+						Index: indexName,
+						ID:    6,
+					},
+				},
+				Source: MyData{
+					MyField: "東京で夢の大学生活",
+				},
+			},
+			{
+				BulkIndex: es.BulkIndex{
+					Index: es.BulkIndexMeta{
+						Index: indexName,
+						ID:    7,
+					},
+				},
+				Source: MyData{
+					MyField: "東京大学で夢の生活",
+				},
+			},
+			{
+				BulkIndex: es.BulkIndex{
+					Index: es.BulkIndexMeta{
+						Index: indexName,
+						ID:    8,
+					},
+				},
+				Source: MyData{
+					MyField: "東大で夢の生活",
+				},
+			},
+			{
+				BulkIndex: es.BulkIndex{
+					Index: es.BulkIndexMeta{
+						Index: indexName,
+						ID:    9,
+					},
+				},
+				Source: MyData{
+					MyField: "首都圏の大学 東京",
+				},
+			},
+		},
 	); err != nil {
 		panic(err)
 	}
@@ -352,7 +302,64 @@ func main() {
 		fmt.Println(string(bytes))
 	}
 
-	for _, q := range query {
+	for _, q := range []es.Query{
+		{
+			Query: es.BoolQuery{
+				Bool: es.BoolBody{
+					Must: []es.MultiMatchQuery{
+						{
+							MultiMatch: es.MultiMatchBody{
+								Query: "米国",
+								Type:  "phrase",
+								Fields: []string{
+									"my_field.ngram^1",
+								},
+							},
+						},
+					},
+					Should: []es.MultiMatchQuery{
+						{
+							MultiMatch: es.MultiMatchBody{
+								Query: "米国",
+								Type:  "phrase",
+								Fields: []string{
+									"my_field^1",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Query: es.BoolQuery{
+				Bool: es.BoolBody{
+					Must: []es.MultiMatchQuery{
+						{
+							MultiMatch: es.MultiMatchBody{
+								Query: "東京大学",
+								Type:  "phrase",
+								Fields: []string{
+									"my_field.ngram^1",
+								},
+							},
+						},
+					},
+					Should: []es.MultiMatchQuery{
+						{
+							MultiMatch: es.MultiMatchBody{
+								Query: "東京大学",
+								Type:  "phrase",
+								Fields: []string{
+									"my_field^1",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	} {
 		result, err := es.Search[MyData](
 			context.Background(),
 			client,
