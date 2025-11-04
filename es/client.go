@@ -12,7 +12,7 @@ import (
 )
 
 type Client struct {
-	client *elasticsearch.Client
+	es *elasticsearch.Client
 }
 
 func NewClient(address []string, username, password string) (*Client, error) {
@@ -31,12 +31,12 @@ func NewClient(address []string, username, password string) (*Client, error) {
 	}
 
 	return &Client{
-		client: es,
+		es: es,
 	}, nil
 }
 
 func (c *Client) Ping() error {
-	if _, err := c.client.Ping(); err != nil {
+	if _, err := c.es.Ping(); err != nil {
 		return err
 	}
 
@@ -44,7 +44,7 @@ func (c *Client) Ping() error {
 }
 
 func (c *Client) Delete(indexNames []string) error {
-	if _, err := c.client.Indices.Delete(indexNames); err != nil {
+	if _, err := c.es.Indices.Delete(indexNames); err != nil {
 		return err
 	}
 
@@ -61,10 +61,10 @@ func (c *Client) Create(
 		return err
 	}
 
-	res, err := c.client.Indices.Create(
+	res, err := c.es.Indices.Create(
 		indexName,
-		c.client.Indices.Create.WithBody(bytes.NewReader(data)),
-		c.client.Indices.Create.WithContext(ctx),
+		c.es.Indices.Create.WithBody(bytes.NewReader(data)),
+		c.es.Indices.Create.WithContext(ctx),
 	)
 	if err != nil {
 		return err
@@ -79,8 +79,8 @@ func (c *Client) Create(
 }
 
 func (c *Client) Count(indexName string) (int, error) {
-	res, err := c.client.Count(
-		c.client.Count.WithIndex(indexName),
+	res, err := c.es.Count(
+		c.es.Count.WithIndex(indexName),
 	)
 	if err != nil {
 		return -1, err
@@ -100,9 +100,9 @@ func (c *Client) Count(indexName string) (int, error) {
 }
 
 func (c *Client) CatIndex() ([]CatIndex, error) {
-	res, err := c.client.Cat.Indices(
-		c.client.Cat.Indices.WithFormat("json"),
-		c.client.Cat.Indices.WithPretty(),
+	res, err := c.es.Cat.Indices(
+		c.es.Cat.Indices.WithFormat("json"),
+		c.es.Cat.Indices.WithPretty(),
 	)
 	if err != nil {
 		return nil, err
@@ -128,10 +128,10 @@ func Bulk[T any](
 		return err
 	}
 
-	res, err := client.client.Bulk(
+	res, err := client.es.Bulk(
 		bytes.NewReader(dataBytes),
-		client.client.Bulk.WithContext(ctx),
-		client.client.Bulk.WithIndex(indexName),
+		client.es.Bulk.WithContext(ctx),
+		client.es.Bulk.WithIndex(indexName),
 	)
 	if err != nil {
 		return err
@@ -156,11 +156,11 @@ func Search[T any](
 		return nil, err
 	}
 
-	res, err := client.client.Search(
-		client.client.Search.WithContext(ctx),
-		client.client.Search.WithIndex(indexName),
-		client.client.Search.WithBody(bytes.NewReader(queryBytes)),
-		client.client.Search.WithTrackTotalHits(true),
+	res, err := client.es.Search(
+		client.es.Search.WithContext(ctx),
+		client.es.Search.WithIndex(indexName),
+		client.es.Search.WithBody(bytes.NewReader(queryBytes)),
+		client.es.Search.WithTrackTotalHits(true),
 	)
 	if err != nil {
 		return nil, err
