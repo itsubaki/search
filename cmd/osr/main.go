@@ -2,123 +2,117 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 
-	"github.com/opensearch-project/opensearch-go"
-	"github.com/opensearch-project/opensearch-go/opensearchapi"
+	"github.com/itsubaki/search/osr"
 )
 
 const (
-	user = "admin"
-	pswd = "xuYz3_cAXYh7"
-	addr = "https://localhost:9200"
+	username = "admin"
+	password = "xuYz3_cAXYh7"
+	addr     = "https://localhost:9200"
+	index    = "go-test-index1"
 )
 
 func main() {
-	client, err := opensearch.NewClient(opensearch.Config{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
+	client, err := osr.NewClient(
+		[]string{addr},
+		username,
+		password,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	resp, err := client.CatIndex()
+	if err != nil {
+		panic(err)
+	}
+
+	for _, r := range resp {
+		fmt.Printf("%+v\n", r)
+	}
+	fmt.Println()
+
+	ctx := context.Background()
+	if err := client.Delete(ctx, []string{index}); err != nil {
+		fmt.Println(err)
+	}
+
+	if err := client.Create(ctx, index, strings.NewReader(
+		`{"settings": {"index": {"number_of_shards": 1, "number_of_replicas": 0}}}`,
+	)); err != nil {
+		panic(err)
+	}
+
+	type Movie struct {
+		Title    string `json:"title"`
+		Director string `json:"director"`
+		Year     string `json:"year"`
+	}
+
+	if err := osr.Bulk(ctx, client, []osr.Data[Movie]{
+		{
+			BulkIndex: osr.BulkIndex{
+				Index: osr.BulkIndexMeta{
+					Index: index,
+					ID:    1,
+				},
+			},
+			Source: Movie{
+				Title:    "Moneyball",
+				Director: "Bennett Miller",
+				Year:     "2011",
 			},
 		},
-		Addresses: []string{
-			addr,
+		{
+			BulkIndex: osr.BulkIndex{
+				Index: osr.BulkIndexMeta{
+					Index: index,
+					ID:    2,
+				},
+			},
+			Source: Movie{
+				Title:    "Interstellar",
+				Director: "Christopher Nolan",
+				Year:     "2014",
+			},
 		},
-		Username: user,
-		Password: pswd,
-	})
+		{
+			BulkIndex: osr.BulkIndex{
+				Index: osr.BulkIndexMeta{
+					Index: index,
+					ID:    3,
+				},
+			},
+			Source: Movie{
+				Title:    "Star Trek Beyond",
+				Director: "Justin Lin",
+				Year:     "2016",
+			},
+		},
+	}); err != nil {
+		panic(err)
+	}
+
+	if err := client.Refresh(ctx, []string{index}); err != nil {
+		panic(err)
+	}
+
+	results, err := osr.Search[Movie](
+		ctx,
+		client,
+		[]string{index},
+		strings.NewReader(
+			`{"size": 5, "query": { "multi_match": { "query": "miller", "fields": ["title^2", "director"]}}}`,
+		),
+	)
 	if err != nil {
 		panic(err)
 	}
 
-	resp, err := client.Info()
-	if err != nil {
-		panic(err)
+	for _, hit := range results.Hits.Hits {
+		fmt.Printf("%+v\n", hit.Source)
 	}
-	fmt.Println(MustRead(resp.Body))
-
-	{
-		resp, err := opensearchapi.IndicesDeleteRequest{
-			Index: []string{"go-test-index1"},
-		}.Do(context.Background(), client)
-		if err != nil {
-			panic(err)
-		}
-		defer resp.Body.Close()
-
-		fmt.Println(string(MustRead(resp.Body)))
-	}
-
-	{
-		resp, err := opensearchapi.IndicesCreateRequest{
-			Index: "go-test-index1",
-			Body:  strings.NewReader(`{"settings": {"index": {"number_of_shards": 1, "number_of_replicas": 0}}}`),
-		}.Do(context.Background(), client)
-		if err != nil {
-			panic(err)
-		}
-		defer resp.Body.Close()
-
-		fmt.Println(string(MustRead(resp.Body)))
-	}
-
-	{
-		resp, err := opensearchapi.IndexRequest{
-			Index:      "go-test-index1",
-			DocumentID: "1",
-			Body:       strings.NewReader(`{"title": "Moneyball", "director": "Bennett Miller", "year": "2011"}`),
-		}.Do(context.Background(), client)
-		if err != nil {
-			panic(err)
-		}
-		defer resp.Body.Close()
-
-		fmt.Println(MustRead(resp.Body))
-	}
-
-	{
-		data := `
-	{ "index" : { "_index" : "go-test-index1", "_id" : "2" } }
-	{ "title" : "Interstellar", "director" : "Christopher Nolan", "year" : "2014"}
-	{ "create" : { "_index" : "go-test-index1", "_id" : "3" } }
-	{ "title" : "Star Trek Beyond", "director" : "Justin Lin", "year" : "2015"}
-	{ "update" : {"_id" : "3", "_index" : "go-test-index1" } }
-	{ "doc" : {"year" : "2016"} }
-	` + "\n"
-
-		resp, err := client.Bulk(strings.NewReader(data))
-		if err != nil {
-			panic(err)
-		}
-		defer resp.Body.Close()
-
-		fmt.Println(MustRead(resp.Body))
-	}
-
-	{
-		content := strings.NewReader(`{"size": 5, "query": { "multi_match": { "query": "miller", "fields": ["title^2", "director"]}}}`)
-		resp, err := opensearchapi.SearchRequest{
-			Index: []string{"go-test-index1"},
-			Body:  content,
-		}.Do(context.Background(), client)
-		if err != nil {
-			panic(err)
-		}
-		defer resp.Body.Close()
-
-		fmt.Println(MustRead(resp.Body))
-	}
-}
-
-func MustRead(r io.Reader) string {
-	bytes, err := io.ReadAll(r)
-	if err != nil {
-		panic(err)
-	}
-
-	return string(bytes)
 }

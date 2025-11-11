@@ -45,6 +45,55 @@ func (c *Client) Ping() error {
 	return nil
 }
 
+func (c *Client) CatIndex() ([]CatIndex, error) {
+	resp, err := opensearchapi.CatIndicesRequest{
+		Format: "json",
+	}.Do(context.Background(), c.osc)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return nil, fmt.Errorf("cat indices: %s", resp.String())
+	}
+
+	var result []CatIndex
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode: %v", err)
+	}
+
+	return result, nil
+}
+
+func (c *Client) Count(
+	ctx context.Context,
+	index string,
+) (int, error) {
+	resp, err := opensearchapi.CountRequest{
+		Index: []string{index},
+	}.Do(ctx, c.osc)
+	if err != nil {
+		return -1, err
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return -1, fmt.Errorf("count: %s", resp.String())
+	}
+
+	type Result struct {
+		Count int `json:"count"`
+	}
+
+	var result Result
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return -1, fmt.Errorf("decode: %v", err)
+	}
+
+	return result.Count, nil
+}
+
 func (c *Client) Delete(
 	ctx context.Context,
 	index []string,
@@ -80,6 +129,25 @@ func (c *Client) Create(
 
 	if resp.IsError() {
 		return fmt.Errorf("create index: %s", resp.String())
+	}
+
+	return nil
+}
+
+func (c *Client) Refresh(
+	ctx context.Context,
+	index []string,
+) error {
+	resp, err := opensearchapi.IndicesRefreshRequest{
+		Index: index,
+	}.Do(ctx, c.osc)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return fmt.Errorf("refresh: %s", resp.String())
 	}
 
 	return nil
@@ -136,4 +204,13 @@ func Search[T any](
 	}
 
 	return &result, nil
+}
+
+func MustRead(r io.Reader) string {
+	bytes, err := io.ReadAll(r)
+	if err != nil {
+		panic(err)
+	}
+
+	return string(bytes)
 }

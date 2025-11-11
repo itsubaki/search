@@ -151,7 +151,7 @@ func main() {
 						Type:           "text",
 						SearchAnalyzer: "ja_kuromoji_search_analyzer",
 						Analyzer:       "ja_kuromoji_index_analyzer",
-						Fields: map[string]es.SubField{
+						Fields: map[string]es.Field{
 							"ngram": {
 								Type:           "text",
 								SearchAnalyzer: "ja_ngram_search_analyzer",

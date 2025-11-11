@@ -87,16 +87,16 @@ func (c *Client) Count(indexName string) (int, error) {
 	}
 	defer res.Body.Close()
 
-	type Response struct {
+	type Result struct {
 		Count int `json:"count"`
 	}
 
-	var resp Response
-	if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
+	var result Result
+	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
 		return -1, err
 	}
 
-	return resp.Count, nil
+	return result.Count, nil
 }
 
 func (c *Client) CatIndex() ([]CatIndex, error) {
