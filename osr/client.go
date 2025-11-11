@@ -1,8 +1,11 @@
 package osr
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -42,7 +45,10 @@ func (c *Client) Ping() error {
 	return nil
 }
 
-func (c *Client) Delete(ctx context.Context, index []string) error {
+func (c *Client) Delete(
+	ctx context.Context,
+	index []string,
+) error {
 	resp, err := opensearchapi.IndicesDeleteRequest{
 		Index: index,
 	}.Do(ctx, c.osc)
@@ -51,10 +57,18 @@ func (c *Client) Delete(ctx context.Context, index []string) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.IsError() {
+		return fmt.Errorf("delete index: %s", resp.String())
+	}
+
 	return nil
 }
 
-func (c *Client) Create(ctx context.Context, index string, body io.Reader) error {
+func (c *Client) Create(
+	ctx context.Context,
+	index string,
+	body io.Reader,
+) error {
 	resp, err := opensearchapi.IndicesCreateRequest{
 		Index: index,
 		Body:  body,
@@ -64,5 +78,62 @@ func (c *Client) Create(ctx context.Context, index string, body io.Reader) error
 	}
 	defer resp.Body.Close()
 
+	if resp.IsError() {
+		return fmt.Errorf("create index: %s", resp.String())
+	}
+
 	return nil
+}
+
+func Bulk[T any](
+	ctx context.Context,
+	client *Client,
+	data []Data[T],
+) error {
+	b, err := Bytes(data)
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.osc.Bulk(
+		bytes.NewReader(b),
+		client.osc.Bulk.WithContext(ctx),
+	)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return fmt.Errorf("bulk indexing: %s", resp.String())
+	}
+
+	return nil
+}
+
+func Search[T any](
+	ctx context.Context,
+	client *Client,
+	index []string,
+	query io.Reader,
+) (*SearchResult[T], error) {
+	resp, err := opensearchapi.SearchRequest{
+		Index: index,
+		Body:  query,
+	}.Do(ctx, client.osc)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return nil, fmt.Errorf("search: %s", resp.String())
+	}
+
+	var result SearchResult[T]
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode: %v", err)
+	}
+
+	return &result, nil
 }
