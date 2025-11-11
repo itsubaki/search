@@ -5,7 +5,6 @@ go 1.24.5
 require (
 	github.com/elastic/go-elasticsearch/v9 v9.2.0
 	github.com/opensearch-project/opensearch-go v1.1.0
-	github.com/opensearch-project/opensearch-go/v4 v4.5.0
 )
 
 require (
