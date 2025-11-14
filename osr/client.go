@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/opensearch-project/opensearch-go"
@@ -45,10 +44,31 @@ func (c *Client) Ping() error {
 	return nil
 }
 
-func (c *Client) CatIndex() ([]CatIndex, error) {
+func (c *Client) CatPlugins(ctx context.Context) ([]Plugin, error) {
+	resp, err := opensearchapi.CatPluginsRequest{
+		Format: "json",
+	}.Do(ctx, c.osc)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return nil, fmt.Errorf("cat plugins: %s", resp.String())
+	}
+
+	var result []Plugin
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode: %v", err)
+	}
+
+	return result, nil
+}
+
+func (c *Client) CatIndex(ctx context.Context) ([]CatIndex, error) {
 	resp, err := opensearchapi.CatIndicesRequest{
 		Format: "json",
-	}.Do(context.Background(), c.osc)
+	}.Do(ctx, c.osc)
 	if err != nil {
 		return nil, err
 	}
@@ -68,10 +88,10 @@ func (c *Client) CatIndex() ([]CatIndex, error) {
 
 func (c *Client) Count(
 	ctx context.Context,
-	index string,
+	indexName string,
 ) (int, error) {
 	resp, err := opensearchapi.CountRequest{
-		Index: []string{index},
+		Index: []string{indexName},
 	}.Do(ctx, c.osc)
 	if err != nil {
 		return -1, err
@@ -96,10 +116,10 @@ func (c *Client) Count(
 
 func (c *Client) Delete(
 	ctx context.Context,
-	index []string,
+	indexName []string,
 ) error {
 	resp, err := opensearchapi.IndicesDeleteRequest{
-		Index: index,
+		Index: indexName,
 	}.Do(ctx, c.osc)
 	if err != nil {
 		return err
@@ -115,12 +135,12 @@ func (c *Client) Delete(
 
 func (c *Client) Create(
 	ctx context.Context,
-	index string,
-	body io.Reader,
+	indexName string,
+	body []byte,
 ) error {
 	resp, err := opensearchapi.IndicesCreateRequest{
-		Index: index,
-		Body:  body,
+		Index: indexName,
+		Body:  bytes.NewReader(body),
 	}.Do(ctx, c.osc)
 	if err != nil {
 		return err
@@ -136,10 +156,10 @@ func (c *Client) Create(
 
 func (c *Client) Refresh(
 	ctx context.Context,
-	index []string,
+	indexName []string,
 ) error {
 	resp, err := opensearchapi.IndicesRefreshRequest{
-		Index: index,
+		Index: indexName,
 	}.Do(ctx, c.osc)
 	if err != nil {
 		return err
@@ -182,12 +202,12 @@ func Bulk[T any](
 func Search[T any](
 	ctx context.Context,
 	client *Client,
-	index []string,
-	query io.Reader,
+	indexName []string,
+	query []byte,
 ) (*SearchResult[T], error) {
 	resp, err := opensearchapi.SearchRequest{
-		Index: index,
-		Body:  query,
+		Index: indexName,
+		Body:  bytes.NewReader(query),
 	}.Do(ctx, client.osc)
 	if err != nil {
 		return nil, err
@@ -204,13 +224,4 @@ func Search[T any](
 	}
 
 	return &result, nil
-}
-
-func MustRead(r io.Reader) string {
-	bytes, err := io.ReadAll(r)
-	if err != nil {
-		panic(err)
-	}
-
-	return string(bytes)
 }

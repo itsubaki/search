@@ -1,4 +1,4 @@
-package es
+package osr
 
 type Index struct {
 	Settings Settings `json:"settings"`
@@ -6,7 +6,13 @@ type Index struct {
 }
 
 type Settings struct {
-	Analysis Analysis `json:"analysis"`
+	SettingsIndex SettingsIndex `json:"index"`
+	Analysis      Analysis      `json:"analysis"`
+}
+
+type SettingsIndex struct {
+	KNN      bool `json:"knn"`
+	EFSearch int  `json:"knn.algo_param.ef_search"`
 }
 
 type Analysis struct {
@@ -51,9 +57,10 @@ type Mappings struct {
 
 type Property struct {
 	Type           string           `json:"type"`
-	SearchAnalyzer string           `json:"search_analyzer"`
-	Analyzer       string           `json:"analyzer"`
-	Fields         map[string]Field `json:"fields"`
+	SearchAnalyzer string           `json:"search_analyzer,omitempty"`
+	Analyzer       string           `json:"analyzer,omitempty"`
+	Fields         map[string]Field `json:"fields,omitempty"`
+	Dimension      int              `json:"dimension,omitempty"`
 }
 
 type Field struct {

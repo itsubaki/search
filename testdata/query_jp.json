@@ -1,0 +1,28 @@
+{
+    "query": {
+        "bool": {
+            "must": [
+                {
+                    "multi_match": {
+                        "query": "東京大学",
+                        "fields": [
+                            "my_field.ngram^1"
+                        ],
+                        "type": "phrase"
+                    }
+                }
+            ],
+            "should": [
+                {
+                    "multi_match": {
+                        "query": "東京大学",
+                        "fields": [
+                            "my_field^1"
+                        ],
+                        "type": "phrase"
+                    }
+                }
+            ]
+        }
+    }
+}

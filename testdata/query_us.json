@@ -1,0 +1,50 @@
+{
+    "query": {
+        "bool": {
+            "must": [
+                {
+                    "multi_match": {
+                        "query": "米国",
+                        "fields": [
+                            "my_field.ngram^1"
+                        ],
+                        "type": "phrase"
+                    }
+                }
+            ],
+            "should": [
+                {
+                    "multi_match": {
+                        "query": "米国",
+                        "fields": [
+                            "my_field^1"
+                        ],
+                        "type": "phrase"
+                    }
+                },
+                {
+                    "knn": {
+                        "my_dense_vector": {
+                            "vector": [
+                                1,
+                                1,
+                                1
+                            ],
+                            "k": 10
+                        }
+                    }
+                }
+            ]
+        }
+    },
+    "sort": [
+        {
+            "_score": {
+                "order": "desc"
+            }
+        }
+    ],
+    "_source": [
+        "my_field"
+    ]
+}

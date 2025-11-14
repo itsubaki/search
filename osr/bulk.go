@@ -3,6 +3,8 @@ package osr
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"io"
 )
 
 type BulkIndex struct {
@@ -40,4 +42,31 @@ func Bytes[T any](data []Data[T]) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+func Read[T any](b []byte) ([]Data[T], error) {
+	var result []Data[T]
+	dec := json.NewDecoder(bytes.NewReader(b))
+	for {
+		var meta BulkIndex
+		if err := dec.Decode(&meta); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+
+			return nil, err
+		}
+
+		var source T
+		if err := dec.Decode(&source); err != nil {
+			return nil, err
+		}
+
+		result = append(result, Data[T]{
+			BulkIndex: meta,
+			Source:    source,
+		})
+	}
+
+	return result, nil
 }
