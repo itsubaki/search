@@ -17,26 +17,21 @@ const (
 
 var (
 	index = func() []byte {
-		index, err := os.ReadFile("testdata/index.json")
+		read, err := os.ReadFile("testdata/index.json")
 		if err != nil {
 			panic(err)
 		}
 
-		return index
+		return read
 	}()
 
-	bulk = func() []osr.Data[MyData] {
-		data, err := os.ReadFile("testdata/data.jsonl")
+	data = func() []byte {
+		read, err := os.ReadFile("testdata/data.jsonl")
 		if err != nil {
 			panic(err)
 		}
 
-		bulk, err := osr.Read[MyData](data)
-		if err != nil {
-			panic(err)
-		}
-
-		return bulk
+		return read
 	}()
 
 	query = func() [][]byte {
@@ -81,7 +76,7 @@ func main() {
 		panic(err)
 	}
 
-	if err := osr.Bulk(ctx, client, bulk); err != nil {
+	if err := osr.Bulk[MyData](ctx, client, data); err != nil {
 		panic(err)
 	}
 

@@ -44,7 +44,7 @@ func Bytes[T any](data []Data[T]) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func Read[T any](b []byte) ([]Data[T], error) {
+func Decode[T any](b []byte) ([]Data[T], error) {
 	var result []Data[T]
 	dec := json.NewDecoder(bytes.NewReader(b))
 	for {
