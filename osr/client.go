@@ -176,14 +176,15 @@ func (c *Client) Refresh(
 func Bulk[T any](
 	ctx context.Context,
 	client *Client,
-	data []byte,
+	data []Data[T],
 ) error {
-	if _, err := Decode[T](data); err != nil {
+	b, err := Bytes(data)
+	if err != nil {
 		return err
 	}
 
 	resp, err := client.osc.Bulk(
-		bytes.NewReader(data),
+		bytes.NewReader(b),
 		client.osc.Bulk.WithContext(ctx),
 	)
 	if err != nil {

@@ -109,6 +109,9 @@
                 "type": "knn_vector",
                 "dimension": 3
             },
+            "my_sparse_vector": {
+                "type": "rank_features"
+            },
             "my_field": {
                 "type": "text",
                 "search_analyzer": "ja_kuromoji_search_analyzer",
@@ -120,9 +123,6 @@
                         "analyzer": "ja_ngram_index_analyzer"
                     }
                 }
-            },
-            "my_sparse_vector": {
-                "type": "rank_features"
             }
         }
     }

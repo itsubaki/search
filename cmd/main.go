@@ -15,6 +15,11 @@ const (
 	indexName = "my_fulltext_search"
 )
 
+type MyData struct {
+	MyField       string    `json:"my_field"`
+	MyDenseVector []float32 `json:"my_dense_vector,omitempty"`
+}
+
 var (
 	index = func() []byte {
 		read, err := os.ReadFile("testdata/index.json")
@@ -52,11 +57,6 @@ var (
 	}()
 )
 
-type MyData struct {
-	MyField       string    `json:"my_field"`
-	MyDenseVector []float32 `json:"my_dense_vector,omitempty"`
-}
-
 func main() {
 	client, err := osr.NewClient(
 		[]string{addr},
@@ -76,7 +76,12 @@ func main() {
 		panic(err)
 	}
 
-	if err := osr.Bulk[MyData](ctx, client, data); err != nil {
+	bulk, err := osr.Decode[MyData](data)
+	if err != nil {
+		panic(err)
+	}
+
+	if err := osr.Bulk(ctx, client, bulk); err != nil {
 		panic(err)
 	}
 
